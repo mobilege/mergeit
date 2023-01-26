@@ -8,73 +8,40 @@ struct MergeIt: ParsableCommand {
     @Argument var path: String = "/Users/rabinjoshi/Developer/proj/MergeIt/files"
 
     mutating func run() throws {
-        printPaths()
+        do {
+            try merge(path: path)
+        } catch {
+            print(">>> ", error)
+        }
     }
 
-    func printPaths() {
-        print("Path: \(path)")
+    func merge(path: String) throws {
+
+        let fm = FileManager.default
 
         guard let url = URL(string: path) else {
-            print(">>> Error: Path invalid")
-            return
+            throw Error("Invalid path")
         }
 
-        let files = FileDesc.contentsOfDirectory(url: url)
-        let pdfs = files.filter({ $0.isPDF })
-        pdfs.forEach({
-            print($0.lastPathComponent)
-        })
+        let urls = try fm.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        )
 
-        let sorted = pdfs.sorted { $0.lastPathComponent < $1.lastPathComponent }
-        let docs = sorted.compactMap(\.pdfDoc)
+        let filtered = urls.filter { $0.pathExtension == "pdf"}
+        let sorted = filtered.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let docs = sorted.compactMap { PDFDocument(url: $0) }
 
         let doc = PDFDocument()
-        doc.outlineRoot = PDFOutline()
         doc.append(docs)
 
         let writePath = url.appending(path: "all.pdf")
-        doc.write(toFile: writePath.absoluteString)
-    }
-}
-
-
-
-struct FileDesc {
-    let url: URL
-    let lastPathComponent: String
-    let absoluteString: String
-
-    var isPDF: Bool {
-        lastPathComponent.hasSuffix(".pdf")
-    }
-
-    var pdfDoc: PDFDocument? {
-        PDFDocument(url: url)
-    }
-
-    init(url: URL) {
-        self.url = url
-        self.lastPathComponent = url.lastPathComponent
-        self.absoluteString = url.absoluteString
-    }
-
-    static func contentsOfDirectory(url: URL) -> [FileDesc] {
-        do {
-            let fm = FileManager.default
-            let contents = try fm.contentsOfDirectory(
-                at: url,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
-            let files = contents.map({ FileDesc(url: $0) })
-            return files
-        } catch {
-            print("failed to read directory – bad permissions, perhaps?")
-            return []
+        guard doc.write(toFile: writePath.absoluteString) else {
+            throw Error("write(toFile:) failed")
         }
     }
 }
-
 
 extension PDFDocument {
     func append(_ doc: PDFDocument) {
@@ -98,3 +65,12 @@ extension PDFDocument {
         }
     }
 }
+
+enum Error: Swift.Error {
+    case custom(String)
+
+    init(_ str: String) {
+        self = .custom(str)
+    }
+}
+
