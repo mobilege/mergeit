@@ -15,6 +15,17 @@ struct MergeIt: ParsableCommand {
         }
     }
 
+    /**
+
+    This function takes a single parameter, a string representing the directory path, and merges all the PDF files present in the directory into a single PDF file named "all.pdf" in the same directory.
+
+    - Parameters:
+        - path: A string representing the directory path.
+
+    - Throws:
+        - Error: If the provided path is invalid or if the write(toFile:) method fails.
+
+    */
     func merge(path: String) throws {
 
         let fm = FileManager.default
@@ -36,6 +47,7 @@ struct MergeIt: ParsableCommand {
         let doc = PDFDocument()
         doc.append(docs)
 
+        // Creates new file path, writes doc to it, throws error if it fails.
         let writePath = url.appending(path: "all.pdf")
         guard doc.write(toFile: writePath.absoluteString) else {
             throw Error("write(toFile:) failed")
